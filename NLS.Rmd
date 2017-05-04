@@ -1,0 +1,299 @@
+---
+title: "Non-Linear Least-Squares in R"
+author: "Tsjerk A. Wassenaar"
+date: "5/1/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# A note before start
+
+This document was written to support non-linear modeling as part of the fifth statistics module of Bioinformatics at the Hanze University of Applied Sciences. The intention of this document is illustrating what (non-linear) modeling is about, how it is done and how the results are to be evaluated. The document includes casually written explanatory text, together with equations, sample R code and coding suggestions/assignments. Note that most equations are not really required for following the text, and can be regarded on a 'sure, whatever' basis. They are there for sake of completeness and rigor and specifically for those not afraid of seeing explicit variables.
+
+# Data and models
+
+Statistics is typically associated with hypotheses and proving things, especially if the thing is not obvious, but its proof is desired. Yet the most important aspect of statistics is modeling. More specifically, the aim of statistics is trying to understand things by finding a model that can account for the observations, taking into account what we __don't__ know. This can go either of two ways: "How likely is my data for a certain model?" or "How likely is my model for certain data?". The 'how likely' part typically upsets people, but a statistician is just very unlikely to express him or herself in definite terms. 
+
+For modeling you need several things. Having data to model certainly helps, but the two main components are knowing your models and feeling certain about uncertainty. A great deal of statistics in the first years has covered the last part: probability, sampling, sampling error, mean, variance, and the standard error of the mean. The first steps of modeling were covered in the same period: how likely is this observation if my sampling has a normal distribution, or how likely is it that these means are the same, given my level of uncertainty and assuming normal distributions (the model). 
+
+The 'real modeling' typically starts with ANOVA, which serves to compare means, but is also a fit of the data to a linear model. Of course, when mentioning linear model, you're rather likely to think of 'linear regression', but ANOVA and methods of principal components (notably PCA) fit the bill too.
+
+Having a model that can account for what was observed is an important step in understanding the data and its origins. The model should allow a physical interpretation, suggesting biological, chemical, psychological or other mechanisms, and leading to new hypotheses that could be tested in experiments.
+
+It doesn't stop with linear models. The relationship between the input variables and the response, as well as the error term, may be non-linear in nature. This poses two problems: First, the model can't typically be solved analytically, using a single formula. Second, a functional form needs to be chosen as the model. In the following, we will be exploring non-linear models and non-linear modeling. But we'll start with a recap of the linear model, which we'll also use to demonstrate principles of modeling in a more general sense.
+
+## The linear model
+
+A linear model is a model in which a response is described as the sum of contributions of input variables, multiplied by their respective coefficients. In addition, a linear model is assumed to have residuals, which are _uncorrelated_ and are drawn from a single _normal distribution_ with mean zero and a _fixed standard deviation_. 
+
+The _uncorrelated_ part means that the deviation of one data point from the model is independent from the deviation of the one before, and of the next, and of any other. This can be loosely interpreted as "the residuals show no structure with respect to the input variables.
+
+That the residuals have a _fixed standard deviation_ simply indicates that the width of the distribution of residuals is the same over the whole domain. In other words, the noise is constant. There are cases where the standard deviation changes as function of the input variables. In that case a simple linear model cannot be used.
+
+Finally, the _simple linear model_ assumes that the residuals have a normal distribution. There may be many cases where the residuals have a different underlying distribution. Then you'll have to resort to a _**generalized** linear model_.
+
+### Simple linear models
+
+A simple linear model looks something like:
+
+$$ y_i = b_0 + b_1 x_{1i} + b_2 x_{2i} + \ldots + \epsilon_i $$
+
+The coefficient $b_0$ is the intercept, i.e., the value of the response if all input variables are set at 0. Now, if we know the coefficients $b_*$, then we can estimate the response value for a set of $x_{*i}$. Of course, we miss out on the deviation ($\epsilon_i$); our model predicts the mean of the response, which we call $\hat{y_i}$. So, we can now rearrange and write the deviation as the difference between the observed value and the predicted value:
+
+$$ \epsilon_i = y_i - \hat{y_i} $$
+
+### Simple linear models in R
+
+In R the (simple) linear model is fit using the function _lm_. 
+
+ [ Example pending... ]
+ 
+```{r, echo=FALSE}
+
+```
+
+
+### Linear models with non-linear dependency in the response
+
+Now, this may sound as a bit of a contradiction, but don't worry. This is still a simple linear model, but now a function is applied to one or more input variables, before putting it in the model. The model then looks a tiny bit different, but turns back to the simple linear case if you replace each transformed variable by $z_{ji} = f_j(x_{ji})$:
+
+$$ y_i = b_0 + b_1 f_1(x_{1i}) + b_2 f_2(x_{2i}) + \ldots + \epsilon_i $$
+
+An example of such a model is the polynomial fit:
+
+$$ y_i = b_0 + b_1 f_1(x_{i}) + b_2 f_2(x_{i}) + b_3 f_3(x_{i}) + \ldots + \epsilon_i $$
+
+where $f_1(x) = x$, $f_2(x) = x^2$, and $f_3(x) = x^3$, such that we get
+
+$$ y_i = b_0 + b_1 x_{i} + b_2 x^2_{i} + b_3 x^3_{i} + \ldots + \epsilon_i $$
+
+So, the bottom line on (simple) linear models is that the _coefficients_ are strictly multipliers of the input contributions in the equation. This allows writing them in a linear algebra form, that allows solving for the coefficients directly. In non-linear models, these coefficients enter in other places and the algebra trick doesn't work. 
+
+### Fitting a polynomial model in R
+
+```{r, echo=FALSE}
+
+```
+
+## Non-linear models
+
+In non-linear models, the response cannot be written as a sum of terms with coefficients to be estimated. The coefficients enter in other places. A simple example is an exponential decay function:
+
+$$ y_i = a e^{-b x_i} + \epsilon_i $$
+
+The coefficient $b$ is in the exponent, and so we are facing a non-linear modeling problem. Now, these problems come roughly in two kinds. The first kind can be _rewritten_ to a linear model, and we'll call these _linearizable models_. Actually, the exponential decay is a typical example of this. When linearized, these models can be solved by standard linear regression. And that's **usually not a good idea**. The other kind cannot be linearized anyway, so we don't need to consider whether it's a good idea or not.
+
+### Linearizable models
+
+The point of a linearizable model is that it can be written as a linear model by some mathematical rearrangement. For the equation above, this can be done using the relation $\ln e^{-bx_i} = -bx_i$:
+
+$$ \ln y_i = \ln a + \ln e^{-bx_i} = A - b x_i $$
+
+But here's the catch: what happened to the residuals? How does the transformation affect the residuals? Only if we forget about that _problem_, and exchange $\epsilon$ for some other sort of error ($\eta_i$), we can really do the rearrangement:
+
+$$ \ln y_i = \ln a + \ln e^{-bx_i} + \eta_i= A - b x_i + \eta_i $$
+
+So, the problem with transformations is that the residuals are not controlled anymore. The transformation also applies to the residuals, so the standard deviation is bound to change as function of the input variable. When this is useful? Well, it works when the noise level is very low. Besides, it's still useful to estimate parameters for non-linear modeling of the real equation. 
+
+### Fitting a linearized model in R
+
+```{r, echo=FALSE}
+
+```
+
+
+### Really non-linear models
+
+Now these are the models that cannot (or maybe also should not) be converted into a linear form. That's where non-linear modeling comes in.
+
+---
+
+# Data Space and Model Space
+
+Before going into the non-linear models, let's take a step back and reflect on what the aim of the modeling is. The model is a mapping from input to response. The input and response together are a set of points in data space and with the model we try to capture the features of the data in this space. For linear models, we can solve for the parameters and get the optimal model directly from the relations in data space, but for non-linear models we'll have to look in another direction: model space.
+
+## Finding your way in data space
+
+The data space and the relations (covariances) between variables are important to solve for the parameters of the linear model. In fact, as mentioned above, we can write a mathematical equation that directly solves for the parameters. For this we're best off with matrix/vector notation of the simple linear model:
+
+$$ \bf y = (\begin{array}{cc}\bf 1 & \bf x\end{array}) \left( \begin{array}{c} \it a \\ b\end{array} \right) + \bf \epsilon = \it a \bf 1 + \it b \bf x + \bf \epsilon$$
+
+From this we can solve for a and b by bringing all the known stuff to one side. This we do by multiplying both sides with the same stuff, such that the terms cancel on one side. Note that we can _always apply operations to both sides of the equal sign_:
+
+$$ \left( \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array}) \right)^{-1} \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) \bf y = \left( \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array}) \right)^{-1} \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array})  \left( \begin{array}{c} \it a \\ b\end{array} \right) = \left( \begin{array}{c} \it a \\ b\end{array} \right) $$
+
+Right, that looks a bit intimidating (and the LaTex source is much worse). But it ends up simply expressing the model parameters in terms of variances and covariances, which just describes the relations in the data space. 
+
+Specifically, we get:
+
+$$ b = \frac { cov(x, y) } { var(x) } $$
+
+and
+
+$$ a = \bar y - b \bar x $$
+
+### Determining coefficients of a linear model 'manually' in R
+
+```{r, echo=FALSE}
+
+```
+
+## The residual sum of squares
+
+A model usually can't explain everything, and each point still has some deviation. Together, these deviations are called the _residuals_. Squaring the deviations and summing them all gives the _residual sum of squares_ (RSS). Dividing by the number of points gives the variance of the residuals and taking the square root of that gives the standard deviation. Now, the best fitting model is, obviously, the one that gives the smallest RSS, and thus the smallest variance and thus the smallest standard deviation.
+
+### Calculating the residual sum of squares in R
+
+```{r, echo=FALSE}
+
+```
+
+## First steps in model space
+
+We've seen how the model parameters directly follow from the relationships in the data space, but we can also look at it from a different angle. The parameters $a$ and $b$ can have all kinds of values. Each combination of $a$ and $b$ defines a model of which the one found above is the best choice. Taken together, all possible values of $a$ and $b$ define the model space. Now let's call the best values $a_m$ and $b_m$, and see what happens to the residuals if we change the parameters to $a_m + d_a$ and $b_m + d_b$. Then the residuals become:
+
+$$ \epsilon^*_i = y_i - a_m - d_a - b_m x_i - d_b x_i = \epsilon_i - d_a - d_b x_i$$
+
+and the squares:
+
+$$ {\epsilon^*_i}^2 = \epsilon^2_i + (d_a + d_b x_i)^2 - 2 \epsilon_i (d_a + d_b x_i)$$
+
+The sum of the squares end up being larger due to the change in the model. 
+
+## Finding your way in model space
+
+
+```{r, echo=FALSE}
+```
+
+# Functions
+
+## Linear
+
+```{r, echo=FALSE}
+
+linear <- function(x, a, b) a + b*x
+
+```
+
+## Polynomial
+
+```{r, echo=FALSE}
+
+poly2 <- function(x, a0, a1, a2) a0 + a1*x + a2*x^2
+poly3 <- function(x, a0, a1, a2, a3) a0 + a1*x + a2*x^2 + a3*x^3
+
+```
+
+## Exponential
+
+### Growth
+
+```{r, echo=FALSE}
+
+grow <- function(x, a, b) a*exp(b*x)
+
+```
+
+### Decay
+
+```{r, echo=FALSE}
+
+decay <- function(x, a, b) a*exp(-b*x)
+
+```
+
+### Growth to plateau
+
+```{r, echo=FALSE}
+
+plateau <- function(x, a, b) a*(1 - exp(-b*x))
+
+```
+
+### Double exponential decay
+
+```{r, echo=FALSE}
+
+ddecay <- function(x, a, p, b1, b2) a*p*exp(-b1*x) + a*(1-p)*exp(-b2*x)
+
+```
+
+## Logarithmic
+
+```{r, echo=FALSE}
+
+logfun <- function(x, a, b) a + b * log(x)
+
+par(mfrow=c(1,3))
+x <- 1:100
+plot(x, logfun(x, 0, 1))
+x <- 1:1000
+plot(x, logfun(x, 0, 1))
+x <- 1:10000
+plot(x, logfun(x, 0, 1))
+
+```
+
+## Growth curves
+
+### Logistic function
+
+```{r, echo=FALSE}
+
+logistic <- function(x, b, m) 1/(1 + exp(-b*(x-m)))
+
+par(mfrow=c(1,3))
+x <- 0:1000
+plot(x, logistic(x, 0.01, 500))
+plot(x, 5*logistic(x, 0.01, 500))
+plot(x, 3-8*logistic(x, 0.01, 500))
+
+```
+
+## Periodic
+
+```{r, echo=FALSE}
+```
+
+## Combined
+
+```{r, echo=FALSE}
+```
+
+# Non-linear modeling with NLS
+
+## nls
+
+### Model 
+
+### Data
+
+### Parameters
+
+### Start parameters
+
+### Fit
+
+### Residual sum of squares
+
+### Trace
+
+### Algorithm
+
+### Self-start models
+
+### Model summary
+
+### R^2
+
+### Residuals
+
+### Evaluation
+
+
