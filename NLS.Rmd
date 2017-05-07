@@ -223,11 +223,28 @@ A model usually can't explain everything, and each point still has some deviatio
 
 ```{r, echo=FALSE}
 
+# Generate sample data
+a <- -5
+b <- 3
+x <- -10:10
+eps <- rnorm(length(x), sd=5)
+y <- a + b*x + eps
+
+# Now try to get the parameters out again:
+b_fit <- cov(x,y)/var(x)
+a_fit <- mean(y) - b*mean(x)
+
+# Determine the residual sum of squares
+residuals <- y - (a_fit + b_fit*x) 
+RSS <- sum(residuals^2)
+
+# Print the RSS, and the standard deviation of the residuals
+cat(paste(RSS, sqrt(RSS/(length(x)-1))))
 ```
 
 ## First steps in model space
 
-We've seen how the model parameters directly follow from the relationships in the data space, but we can also look at it from a different angle. The parameters $a$ and $b$ can have all kinds of values. Each combination of $a$ and $b$ defines a model of which the one found above is the best choice. Taken together, all possible values of $a$ and $b$ define the model space. Now let's call the best values $a_m$ and $b_m$, and see what happens to the residuals if we change the parameters to $a_m + d_a$ and $b_m + d_b$. Then the residuals become:
+We've seen how the model parameters directly follow from the relationships in the data space, but we can also look at it from a different angle. The parameters $a$ and $b$ can have all kinds of values. Each combination of $a$ and $b$ defines a model of which the one found like above is the best choice. Taken together, all possible values of $a$ and $b$ define the model space. Now let's call the best values $a_m$ and $b_m$, and see what happens to the residuals if we change the parameters to $a_m + d_a$ and $b_m + d_b$. Then the residuals become:
 
 $$ \epsilon^*_i = y_i - a_m - d_a - b_m x_i - d_b x_i = \epsilon_i - d_a - d_b x_i$$
 
@@ -235,15 +252,81 @@ and the squares:
 
 $$ {\epsilon^*_i}^2 = \epsilon^2_i + (d_a + d_b x_i)^2 - 2 \epsilon_i (d_a + d_b x_i)$$
 
-The sum of the squares end up being larger due to the change in the model. 
+The sum of the squares end up being larger due to the change in the model, and the increase is quadratic in $d_a$ and $d_b$ (for the linear model). So, if we take a range of values around $a_m$ and $b_m$, and we calculate the residual sum of squares for each combination, we can make a sort of height map from it, in which the best model parameters mark the lowest point:
+
+```{r, echo=FALSE}
+# Generate sample data
+a <- -5
+b <- 3
+x <- -10:10
+eps <- rnorm(length(x), sd=5)
+y <- a + b*x + eps
+
+# Determine the fitted a and b
+mod <- lm(y ~ x)
+a_fit <- coef(mod)[1]
+b_fit <- coef(mod)[2]
+
+# Generate a map of a/b
+a_range <- -100:100/2
+b_range <- -100:100/10
+
+# Generate a function to determine the sum of squares
+rss <- function(a, b, x, y) sum((y - a - b*x)^2)
+
+# Generate the RSS values for each combination (check function outer):
+RSS <- sapply(b_range, function(b) sapply(a_range, function(a) rss(a, b, x, y)))
+
+# Draw the plot
+image(a_range, b_range, RSS, main="Residual sum of squares", xlab="Intercept", ylab="Slope")
+contour(a_range, b_range, RSS, nlevels=14, add=TRUE)
+# Add the lines of the input parameters
+abline(h=b, col="cyan", lwd=2)
+abline(v=a, col="cyan", lwd=2)
+# Add the lines from fitting
+abline(h=b_fit, col="white", lwd=2)
+abline(v=a_fit, col="white", lwd=2)
+```
 
 ## Finding your way in model space
 
+We've got to know data space as having a point for each observation, but data space actually has a _probability_ for each _possible observation_, and through our observations we can see which regions in data space are more likely. Similarly, in model space each point has a residual sum of squares, but model space actually has a _likelihood_ for each _possible model_, and from the sum of squares we can see how likely a combination of parameters is. 
+
+The likelihood is inversely related to the RSS: the higher the RSS, the less likely the combination is, and the combination with the minimal RSS is the most likely. In the image above, we see that the RSS increases more and more going further away from the best fit parameters. This can be used to find the optimal combination. If you start with some combination of $a$ and $b$, you can calculate the RSS there, and you can calculate how the RSS changes if you change $a$ or $b$. Then you also know in which direction the RSS will change most. Much like when on a hill, you can see which direction is the steepest and will get you down quickest. You take a step in that direction and repeat the procedure until you reach a point where any direction will only bring you up. That means you've found the lowest point that you could reach by going down. 
+
+The procedure to find the optimal combination is called energy minimization and that is just what we need to estimate parameters for non-linear models.
+
+### Non-linear least squares (nls)
+
+In R, the energy minimization procedure to find parameters for non-linear models is available through the function _nls_. We can give it a shot at our linear model first:
 
 ```{r, echo=FALSE}
+
+# Generate sample data
+a <- -5
+b <- 3
+x <- -10:10
+eps <- rnorm(length(x), sd=5)
+y <- a + b*x + eps
+
+cat('\n-----Running NLS fit:\n\n')
+
+# Determine the fitted a and b
+mod <- nls(y ~ a_nls + b_nls*x)
+
+cat('\n\n-----Summary of NLS fit:\n')
+
+summary(mod)
+
+cat('\n-----Summary linear fit:\n')
+
+# Compare to linear fit:
+summary(lm(y ~ x))
 ```
 
 # Functions
+
+
 
 ## Linear
 
