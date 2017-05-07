@@ -17,11 +17,11 @@ This document was written to support non-linear modeling as part of the fifth st
 
 # Data and models
 
-Statistics is typically associated with hypotheses and proving things, especially if the thing is not obvious, but its proof is desired. Yet the most important aspect of statistics is modeling. More specifically, the aim of statistics is trying to understand things by finding a model that can account for the observations, taking into account what we __don't__ know. This can go either of two ways: "How likely is my data for a certain model?" or "How likely is my model for certain data?". The 'how likely' part typically upsets people, but a statistician is just very unlikely to express him or herself in definite terms. 
+Statistics is typically associated with hypotheses and proving things, especially if the thing is not obvious, but its proof is desired. Yet the most important aspect of statistics is modeling. More specifically, the aim of statistics is trying to understand things by finding a model that can account for the observations, taking into account what we __don't__ know. This can go either of two ways: "How likely is my data for a certain model?" or "How likely is my model for certain data?". The 'how likely' part typically upsets people that want clear-cut answers, but a statistician is just very unlikely to express him or herself in definite terms. 
 
 For modeling you need several things. Having data to model certainly helps, but the two main components are knowing your models and feeling certain about uncertainty. A great deal of statistics in the first years has covered the last part: probability, sampling, sampling error, mean, variance, and the standard error of the mean. The first steps of modeling were covered in the same period: how likely is this observation if my sampling has a normal distribution, or how likely is it that these means are the same, given my level of uncertainty and assuming normal distributions (the model). 
 
-The 'real modeling' typically starts with ANOVA, which serves to compare means, but is also a fit of the data to a linear model. Of course, when mentioning linear model, you're rather likely to think of 'linear regression', but ANOVA and methods of principal components (notably PCA) fit the bill too.
+The 'real modeling' typically starts with ANOVA, which serves to compare means, but is also a fit of the data to a linear model. Of course, when mentioning _linear model_, you're rather likely to think of 'linear regression', but ANOVA and methods of principal components (notably PCA) fit the bill too.
 
 Having a model that can account for what was observed is an important step in understanding the data and its origins. The model should allow a physical interpretation, suggesting biological, chemical, psychological or other mechanisms, and leading to new hypotheses that could be tested in experiments.
 
@@ -31,9 +31,17 @@ It doesn't stop with linear models. The relationship between the input variables
 
 A linear model is a model in which a response is described as the sum of contributions of input variables, multiplied by their respective coefficients. In addition, a linear model is assumed to have residuals, which are _uncorrelated_ and are drawn from a single _normal distribution_ with mean zero and a _fixed standard deviation_. 
 
-The _uncorrelated_ part means that the deviation of one data point from the model is independent from the deviation of the one before, and of the next, and of any other. This can be loosely interpreted as "the residuals show no structure with respect to the input variables.
+The _uncorrelated_ part means that the deviation of one data point from the model is independent from the deviation of the one before, and of the next, and of any other. This can be loosely interpreted as "the residuals show no structure with respect to the input variables".
 
-That the residuals have a _fixed standard deviation_ simply indicates that the width of the distribution of residuals is the same over the whole domain. In other words, the noise is constant. There are cases where the standard deviation changes as function of the input variables. In that case a simple linear model cannot be used.
+That the residuals have a _fixed standard deviation_ simply indicates that the width of the distribution of residuals is the same over the whole domain. In other words, the noise is constant, as in the left plot below. There are cases where the standard deviation changes as function of the input variables, as shown in the right plot below. In that case a simple linear model cannot be used.
+
+```{r, echo=FALSE}
+
+par(mfrow=c(1,2))
+x <- 0:1000/100
+plot(x, 2 + 3*x + rnorm(1001), main="Invariant white noise")
+plot(x, 2 + 3*x + rnorm(1001)*x, main="x-dependent noise")
+```
 
 Finally, the _simple linear model_ assumes that the residuals have a normal distribution. There may be many cases where the residuals have a different underlying distribution. Then you'll have to resort to a _**generalized** linear model_.
 
@@ -78,6 +86,23 @@ So, the bottom line on (simple) linear models is that the _coefficients_ are str
 
 ```{r, echo=FALSE}
 
+# Generate some third-order polynomial data with noise
+x <- -1000:1000/100
+eps <- rnorm(length(x), sd=10)
+y <- 4 - 0.3*x + 0.7*x^2 - 0.1*x^3 + eps
+
+# Fit the data using derived input variables u and v
+u <- x^2
+v <- x^3
+mod <- lm(y ~ x + u + v)
+
+# Determine the y values according to the model (y_hat)
+# Take the inner product of the input data with the coefficients
+# Note: you don't _need_ to be able to reproduce this 
+y_hat <- cbind(1, x, u, v) %*% coef(mod)
+
+plot(x, y)
+lines(x, y_hat, lwd=3, col="orange")
 ```
 
 ## Non-linear models
@@ -85,6 +110,17 @@ So, the bottom line on (simple) linear models is that the _coefficients_ are str
 In non-linear models, the response cannot be written as a sum of terms with coefficients to be estimated. The coefficients enter in other places. A simple example is an exponential decay function:
 
 $$ y_i = a e^{-b x_i} + \epsilon_i $$
+
+```{r, echo=FALSE}
+a <- 10
+b <- 0.1
+x <- 0:1000/10
+eps <- rnorm(length(x))
+
+y <- a*exp(-b*x) + eps
+
+plot(x, y)
+```
 
 The coefficient $b$ is in the exponent, and so we are facing a non-linear modeling problem. Now, these problems come roughly in two kinds. The first kind can be _rewritten_ to a linear model, and we'll call these _linearizable models_. Actually, the exponential decay is a typical example of this. When linearized, these models can be solved by standard linear regression. And that's **usually not a good idea**. The other kind cannot be linearized anyway, so we don't need to consider whether it's a good idea or not.
 
@@ -94,18 +130,39 @@ The point of a linearizable model is that it can be written as a linear model by
 
 $$ \ln y_i = \ln a + \ln e^{-bx_i} = A - b x_i $$
 
+```{r, echo=FALSE}
+a <- 10
+b <- 0.01
+x <- 0:1000/10
+eps <- rnorm(length(x))
+
+y <- a*exp(-b*x) + eps
+
+plot(x, log(y))
+```
+
 But here's the catch: what happened to the residuals? How does the transformation affect the residuals? Only if we forget about that _problem_, and exchange $\epsilon$ for some other sort of error ($\eta_i$), we can really do the rearrangement:
 
 $$ \ln y_i = \ln a + \ln e^{-bx_i} + \eta_i= A - b x_i + \eta_i $$
 
-So, the problem with transformations is that the residuals are not controlled anymore. The transformation also applies to the residuals, so the standard deviation is bound to change as function of the input variable. When this is useful? Well, it works when the noise level is very low. Besides, it's still useful to estimate parameters for non-linear modeling of the real equation. 
-
-### Fitting a linearized model in R
-
 ```{r, echo=FALSE}
+# Set the input
+a <- 10
+b <- 0.01
+x <- 0:1000/10
+eps <- rnorm(length(x))
 
+# Generate some noisy model data
+y <- a*exp(-b*x) + eps
+
+# Fit the logarithm of y in a linear model
+mod <- lm(log(y) ~ x)
+
+# Plot the residuals
+plot(x, residuals(mod))
 ```
 
+So, the problem with transformations is that the residuals are not controlled anymore. The transformation also applies to the residuals, so the standard deviation is bound to change as function of the input variable. When this is useful? Well, it works when the noise level is very low. Besides, it's still useful to estimate parameters for non-linear modeling of the real equation. 
 
 ### Really non-linear models
 
@@ -115,7 +172,7 @@ Now these are the models that cannot (or maybe also should not) be converted int
 
 # Data Space and Model Space
 
-Before going into the non-linear models, let's take a step back and reflect on what the aim of the modeling is. The model is a mapping from input to response. The input and response together are a set of points in data space and with the model we try to capture the features of the data in this space. For linear models, we can solve for the parameters and get the optimal model directly from the relations in data space, but for non-linear models we'll have to look in another direction: model space.
+Before going into the non-linear models, let's take a step back and reflect on what the aim of the modeling is. First, we assume that there is a relationship between input and output. We come up with a model that is a mapping from input to response. The input and response together are a set of points in data space and with the model we try to capture the features of the data in this space. For linear models, we can solve for the parameters and get the optimal model directly from the relations in data space, but for non-linear models we'll have to look in another direction: model space.
 
 ## Finding your way in data space
 
@@ -123,7 +180,7 @@ The data space and the relations (covariances) between variables are important t
 
 $$ \bf y = (\begin{array}{cc}\bf 1 & \bf x\end{array}) \left( \begin{array}{c} \it a \\ b\end{array} \right) + \bf \epsilon = \it a \bf 1 + \it b \bf x + \bf \epsilon$$
 
-From this we can solve for a and b by bringing all the known stuff to one side. This we do by multiplying both sides with the same stuff, such that the terms cancel on one side. Note that we can _always apply operations to both sides of the equal sign_:
+From here we can solve for a and b by bringing all the known stuff to one side. This we do by multiplying both sides with the same stuff, such that the terms cancel on one side. Note that we can _always apply operations to both sides of the equal sign_:
 
 $$ \left( \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array}) \right)^{-1} \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) \bf y = \left( \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array}) \right)^{-1} \left( \begin{array}{c}\bf 1^{\it T} \\ \bf x^{\it T}\end{array} \right) (\begin{array}{cc}\bf 1 & \bf x\end{array})  \left( \begin{array}{c} \it a \\ b\end{array} \right) = \left( \begin{array}{c} \it a \\ b\end{array} \right) $$
 
@@ -141,6 +198,21 @@ $$ a = \bar y - b \bar x $$
 
 ```{r, echo=FALSE}
 
+# Generate sample data
+a <- -5
+b <- 3
+x <- -10:10
+eps <- rnorm(length(x), sd=5)
+y <- a + b*x + eps
+
+# Now try to get the parameters out again:
+b_fit <- cov(x,y)/var(x)
+a_fit <- mean(y) - b*mean(x)
+
+# Plot the original line (red) and the fitted line (blue)
+plot(x, y)
+abline(a, b, col="red", lwd=2)
+abline(a_fit, b_fit, col="blue", lwd=2)
 ```
 
 ## The residual sum of squares
